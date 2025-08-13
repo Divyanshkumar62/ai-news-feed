@@ -6,16 +6,27 @@ const db = new sqlite3.Database('./articles.db', (err) => {
     console.error('Could not connect to database', err);
   } else {
     console.log('Connected to database');
-    db.run(`CREATE TABLE IF NOT EXISTS articles (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT,
-      link TEXT,
-      date TEXT,
-      summary TEXT
-    )`, (err) => {
+
+    // Drop the table for development purposes
+    db.run(`DROP TABLE IF EXISTS articles`, (err) => {
       if (err) {
-        console.error('Could not create articles table', err);
+        console.error('Could not drop articles table', err);
       }
+
+      db.run(`CREATE TABLE IF NOT EXISTS articles (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT,
+        link TEXT,
+        date TEXT,
+        summary TEXT,
+        views INTEGER DEFAULT 0,
+        shares INTEGER DEFAULT 0,
+        popularity INTEGER DEFAULT 0
+      )`, (err) => {
+        if (err) {
+          console.error('Could not create articles table', err);
+        }
+      });
     });
   }
 });
@@ -95,5 +106,49 @@ module.exports = {
       }
       callback(null, rows);
     });
-  }
+  },
+  incrementViewCount: (id, callback) => {
+    db.run(`UPDATE articles SET views = views + 1 WHERE id = ?`, [id], (err) => {
+      if (err) {
+        console.error('Could not increment view count', err);
+        return callback(err);
+      }
+      console.log('View count incremented successfully');
+      callback(null);
+    });
+  },
+  incrementShareCount: (id, callback) => {
+    db.run(`UPDATE articles SET shares = shares + 1 WHERE id = ?`, [id], (err) => {
+      if (err) {
+        console.error('Could not increment share count', err);
+        return callback(err);
+      }
+      console.log('Share count incremented successfully');
+      callback(null);
+    });
+  },
+  updatePopularity: (id, callback) => {
+    db.get(`SELECT views, shares FROM articles WHERE id = ?`, [id], (err, row) => {
+      if (err) {
+        console.error('Could not get views and shares', err);
+        return callback(err);
+      }
+
+      if (!row) {
+        console.error('Article not found');
+        return callback(new Error('Article not found'));
+      }
+
+      const popularity = row.views + (row.shares * 2);
+
+      db.run(`UPDATE articles SET popularity = ? WHERE id = ?`, [popularity, id], (err) => {
+        if (err) {
+          console.error('Could not update popularity', err);
+          return callback(err);
+        }
+        console.log('Popularity updated successfully');
+        callback(null);
+      });
+    });
+  },
 };

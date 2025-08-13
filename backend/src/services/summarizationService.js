@@ -59,7 +59,7 @@ exports.summarizeWithApiFallback = async (text) => {
     }
 
     const data = await response.json();
-    const summary = data.choices[0].message.content;
+    const summary = data.choices[0].message.content || "";
     console.log(`Groq API summary for: ${text.substring(0, 50)}...\nSummary: ${summary.substring(0, 50)}...`);
     return summary;
 

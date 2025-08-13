@@ -10,7 +10,10 @@ exports.fetchArticlesFromRss = async (feedUrl) => {
     const feed = await parser.parseURL(feedUrl);
     const articles = [];
 
-    for (const item of feed.items) {
+    const limit = 5;
+    const items = feed.items.slice(0, limit);
+
+    for (const item of items) {
       let summary = "";
       if (item.content) {
           summary = await summarizeWithOllama(item.content) || await summarizeWithApiFallback(item.content);

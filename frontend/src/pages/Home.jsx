@@ -1,45 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import NewsCard from '../components/NewsCard';
-import FilterBar from '../components/FilterBar';
-import EmptyState from '../components/EmptyState';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import NewsCard from '../components/NewsCard.jsx';
+import FilterBar from '../components/FilterBar.jsx';
+import API_URL from '../config/apiConfig.js';
+import NewsCardSkeleton from '../components/NewsCardSkeleton.jsx';
+import EmptyState from '../components/EmptyState.jsx';
 
 function Home() {
-  const [articles, setArticles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { isLoading, error, data, refetch } = useQuery({
+    queryKey: ['articles'],
+    queryFn: () => fetch(`${API_URL}/articles`).then((res) => res.json()),
+  });
 
-  useEffect(() => {
-    // TODO: Fetch articles from the backend API
-    fetch('http://localhost:3000/api/articles')
-      .then(response => response.json())
-      .then(data => {
-        setArticles(data);
-        setLoading(false);
-      })
-      .catch(error => {
-        setError(error);
-        setLoading(false);
-      });
-  }, []);
+  if (isLoading) return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {Array.from({ length: 9 }).map((_, index) => (
+        <NewsCardSkeleton key={index} />
+      ))}
+    </div>
+  );
 
-  if (loading) {
-    return <p>Loading...</p>;
-  }
+  if (error) return (
+    <EmptyState onRetry={() => refetch()} />
+  );
 
-  if (error) {
-    return <p>Error: {error.message}</p>;
-  }
+  if (!data || data.length === 0) return (
+    <EmptyState onRetry={() => refetch()} />
+  );
 
   return (
-    <div>
-      <FilterBar />
-      {articles.length > 0 ? (
-        articles.map(article => (
-          <NewsCard key={article.id} article={article} />
-        ))
-      ) : (
-        <EmptyState />
-      )}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {data.map((article) => (
+        <NewsCard key={article.id} article={article} />
+      ))}
     </div>
   );
 }

@@ -1,12 +1,22 @@
 import React from 'react';
-import Home from './pages/Home';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Home from './pages/Home.jsx';
+import NotFound from './pages/NotFound.jsx';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import './index.css';
+
+const queryClient = new QueryClient();
 
 function App() {
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">AI News Feed</h1>
-      <Home />
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
 

@@ -2,3 +2,12 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+body {
+  @apply bg-background text-textPrimary;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.card {
+  @apply bg-cardBackground rounded-lg shadow-md p-4 border border-glassBorder;
+}
