@@ -3,11 +3,38 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-background text-textPrimary;
-  transition: background 0.3s ease, color 0.3s ease;
+@layer base {
+  body {
+    @apply bg-background text-textPrimary font-sans;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
 }
 
-.card {
-  @apply bg-cardBackground rounded-lg shadow-md p-4 border border-glassBorder;
+@layer components {
+  .card {
+    @apply bg-cardBackground rounded-lg shadow-md p-4 border border-glassBorder;
+  }
+
+  .btn {
+    @apply bg-accent hover:bg-accentLight text-white font-bold py-2 px-4 rounded;
+  }
+}
+
+@layer utilities {
+  .container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+}
+
+/* Define primary color */
+.bg-primary {
+  background-color: #3490dc; /* Example primary color */
+}
+
+.text-textSecondary {
+ color: #718096; /* Example secondary text color */
+}
+
+header {
+  margin-bottom: 2rem; /* Add some spacing below the header */
 }

@@ -1,13 +1,13 @@
-const express = require("express");
-const cors = require("cors");
-const articleRoutes = require("./routes/articleRoutes");
-const { handleError } = require("./utils/errorHandler");
-const cron = require("node-cron");
-const { fetchArticlesFromRss, fetchArticlesFromUrls } = require("./services/crawlerService");
-const { sources } = require("./config/sources");
-const dotenv = require('dotenv')
+import express from 'express';
+import cors from "cors";
+import articleRoutes from "./routes/articleRoutes.js";
+import { handleError } from "./utils/errorHandler.js";
+import cron from "node-cron";
+import { fetchArticlesFromRss, fetchArticlesFromUrls } from "./services/crawlerService.js";
+import sources from "./config/sources.js";
+import * as dotenv from 'dotenv';
 
-dotenv.config() 
+dotenv.config();
 const app = express();
 
 // Middleware
@@ -22,21 +22,21 @@ app.use(handleError);
 
 // Schedule news fetching and summarization
 cron.schedule("0 */6 * * *", async () => {
-  console.log("Running cron job...");
-  try {
-    const sourcesCopy = [...sources];
-    for (const source of sourcesCopy) {
-      if (source.type === "rss") {
-        const articles = await fetchArticlesFromRss(source.url);
-        console.log(`Fetched ${articles.length} articles from ${source.name}`);
-      } else if (source.type === "html") {
-        const articles = await fetchArticlesFromUrls([source.url]);
-        console.log(`Scraped ${articles.length} articles from ${source.name}`);
-      }
+    console.log("Running cron job...");
+    try {
+        const sourcesCopy = [...sources];
+        for (const source of sourcesCopy) {
+            if (source.type === "rss") {
+                const articles = await fetchArticlesFromRss(source.url);
+                console.log(`Fetched ${articles.length} articles from ${source.name}`);
+            } else if (source.type === "html") {
+                const articles = await fetchArticlesFromUrls([source.url]);
+                console.log(`Scraped ${articles.length} articles from ${source.name}`);
+            }
+        }
+    } catch (error) {
+        console.error("Error running cron job:", error);
     }
-  } catch (error) {
-    console.error("Error running cron job:", error);
-  }
 });
 
-module.exports = app;
+export default app;

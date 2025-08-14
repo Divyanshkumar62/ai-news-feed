@@ -1,55 +1,76 @@
-const Parser = require('rss-parser');
+import Parser from 'rss-parser';
 const parser = new Parser();
+import fetch from 'node-fetch';
+import * as cheerio from 'cheerio';
 
 // Function to fetch articles from RSS feed
-const { summarizeWithOllama, summarizeWithApiFallback } = require('./summarizationService');
-const databaseService = require('./databaseService');
+import { summarizeWithApiFallback } from './summarizationService.js';
+import databaseService from './databaseService.js';
 
-exports.fetchArticlesFromRss = async (feedUrl) => {
-  try {
-    const feed = await parser.parseURL(feedUrl);
+export const fetchArticlesFromRss = async (feedUrl) => {
     const articles = [];
+    try {
+        const feed = await parser.parseURL(feedUrl);
 
-    const limit = 5;
-    const items = feed.items.slice(0, limit);
+        const limit = 1; // changed to 1 for testing purposes, change back later
+        const items = feed.items.slice(0, limit);
 
-    for (const item of items) {
-      let summary = "";
-      if (item.content) {
-          summary = await summarizeWithOllama(item.content) || await summarizeWithApiFallback(item.content);
-      } else if (item.description) {
-          summary = await summarizeWithOllama(item.description) || await summarizeWithApiFallback(item.description);
-      } else {
-          summary = await summarizeWithOllama(item.title) || await summarizeWithApiFallback(item.title);
-      }
+        for (const item of items) {
+            try {
+                // Check if the article already exists in the database
+                const existingArticle = await databaseService.getArticleByLink(item.link);
+                if (existingArticle) {
+                    console.log(`Article already exists: skipping insertion`);
+                    continue; // Skip to the next article
+                }
 
-      const article = {
-        title: item.title,
-        link: item.link,
-        date: item.pubDate,
-        summary: summary,
-      };
+                let newsContent;
+                if (item.content) {
+                    newsContent = item.content;
+                } else if (item.description) {
+                    newsContent = item.description;
+                } else {
+                    newsContent = item.title;
+                }
 
-      await new Promise((resolve, reject) => {
-        databaseService.insertArticle(article, (err) => {
-          if (err) {
-            console.error("Error inserting article into database:", err);
-            reject(err);
-          } else {
-            resolve();
-          }
-        });
-      });
-      articles.push(article);
+                let summary = "";
+                summary = await summarizeWithApiFallback(newsContent);
+
+                if (!summary) {
+                    console.log("No summary generated at all.");
+                    continue; // Skip to the next article
+                }
+
+                const article = {
+                    title: item.title,
+                    link: item.link,
+                    date: item.pubDate,
+                    summary: summary,
+                };
+
+                try {
+                    await databaseService.insertArticle(article);
+                    articles.push(article);
+                } catch (error) {
+                    console.error("Error inserting article into database:", error);
+                }
+
+            } catch (error) {
+                console.error("Error processing article:", error);
+            }
+        }
+        return articles;
+    } catch (error) {
+        if (error instanceof Error && error.message.includes('Status code 404')) {
+            console.warn(`RSS feed not found: ${feedUrl}`);
+        } else {
+            console.error("Error fetching RSS feed:", error);
+        }
+        return [];
     }
-    return articles;
-  } catch (error) {
-    console.error("Error fetching RSS feed:", error);
-    return [];
-  }
 };
 
-exports.fetchArticlesFromUrls = async (urls) => {
+export const fetchArticlesFromUrls = async (urls) => {
     const articles = [];
 
     for (const url of urls) {
@@ -60,47 +81,40 @@ exports.fetchArticlesFromUrls = async (urls) => {
     return articles;
 };
 
-const cheerio = require('cheerio');
-const fetch = require('node-fetch');
 
-exports.scrapeArticlesFromHtml = async (url) => {
-  try {
-    const response = await fetch(url);
-    const html = await response.text();
-    const $ = cheerio.load(html);
+export const scrapeArticlesFromHtml = async (url) => {
+    try {
+        const response = await fetch(url);
+        const html = await response.text();
+        const $ = cheerio.load(html);
 
-    // Example: Extract title and content from a typical article structure
-    const title = $('h1').text() || $('title').text();
-    const content = $('article').text() || $('body').text(); // Adjust selectors as needed
+        // Example: Extract title and content from a typical article structure
+        const title = $('h1').text() || $('title').text();
+        const content = $('article').text() || $('body').text(); // Adjust selectors as needed
 
-    if (!title || !content) {
-      console.warn(`Could not extract title or content from ${url}`);
-      return [];
-    }
-
-    const summary = await summarizeWithOllama(content) || await summarizeWithApiFallback(content);
-
-    const article = {
-      title: title,
-      link: url,
-      date: new Date().toISOString(), // Current date
-      summary: summary,
-    };
-
-    await new Promise((resolve, reject) => {
-      databaseService.insertArticle(article, (err) => {
-        if (err) {
-          console.error("Error inserting article into database:", err);
-          reject(err);
-        } else {
-          resolve();
+        if (!title || !content) {
+            console.warn(`Could not extract title or content from ${url}`);
+            return [];
         }
-      });
-    });
 
-    return [article];
-  } catch (error) {
-    console.error(`Error scraping HTML from ${url}:`, error);
-    return [];
-  }
+        const summary = await summarizeWithApiFallback(content);
+
+        const article = {
+            title: title,
+            link: url,
+            date: new Date().toISOString(), // Current date
+            summary: summary,
+        };
+
+        try {
+            await databaseService.insertArticle(article);
+        } catch (error) {
+            console.error("Error inserting article into database:", error);
+        }
+
+        return [article];
+    } catch (error) {
+        console.error(`Error scraping HTML from ${url}:`, error);
+        return [];
+    }
 };

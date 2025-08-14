@@ -1,70 +1,129 @@
-// Function to summarize text using local LLM (Ollama)
+import Groq from "groq-sdk";
 
-exports.summarizeWithOllama = async (text) => {
-  try {
-    const command = `echo ${text} | ollama run llama2`;
-    const result = await new Promise((resolve, reject) => {
-      require('child_process').exec(command, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`Ollama summarization error: ${error}`);
-          reject(error);
-        } else {
-          resolve(stdout);
+const groq = new Groq({
+    apiKey: process.env.GROQ_API_KEY,
+});
+
+async function runOllamaSummary(newsContent) {
+    try {
+        const ngrokUrl = process.env.N_GROK_URL;
+
+        const response = await fetch(`${ngrokUrl}/api/generate`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                model: "mistral:instruct",
+                prompt:
+                    "You are a Concise Summarizer. Summarize this under 30 words: " +
+                    newsContent,
+            }),
+            timeout: 10000, // Increase timeout to 10 seconds
+        });
+
+        if (!response.ok) {
+            console.error(
+                `ngrok API error: ${response.status} ${response.statusText}`
+            );
+            return "";
         }
-      });
-    });
-    console.log(`Ollama summary for: ${text.substring(0, 50)}...\nSummary: ${result.substring(0, 50)}...`);
-    return result;
-  } catch (error) {
-    console.error("Error summarizing with Ollama:", error);
-    return "";
-  }
-};
 
-// Function to summarize text using API fallback (Groq API)
-const fetch = require('node-fetch');
+        const data = await response.json();
+        const summary = data.response || "";
+        console.log(
+            `Ollama summary for: ${newsContent.substring(
+                0,
+                50
+            )}...\nSummary: ${summary.substring(0, 50)}...`
+        );
+        return summary;
+    } catch (error) {
+        console.error("Error summarizing with Ollama via ngrok:", error);
+        return "";
+    }
+}
 
-exports.summarizeWithApiFallback = async (text) => {
-  try {
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) {
-      console.error("GROQ_API_KEY is not set in environment variables.");
-      return "";
+export async function summarizeWithGroq(newsContent) {
+    try {
+        console.log("Groq API Request:", {
+            model: "llama2-70b-4096",
+            messages: [
+                {
+                    role: "user",
+                    content: `Summarize the following news article in under 100 words:\n\n${newsContent}`,
+                },
+            ],
+            temperature: 0.3,
+            max_completion_tokens: 300,
+            top_p: 1,
+            stream: false,
+        });
+
+        const completion = await groq.chat.completions.create({
+            model: "llama2-70b-4096",
+            messages: [
+                {
+                    role: "user",
+                    content: `Summarize the following news article in under 100 words:\n\n${newsContent}`,
+                },
+            ],
+            temperature: 0.3,
+            max_completion_tokens: 300,
+            top_p: 1,
+            stream: false,
+        });
+
+        console.log("Groq API Response:", completion);
+
+        let summary = "";
+        if (
+            completion.choices &&
+            completion.choices.length > 0 &&
+            completion.choices[0].message &&
+            completion.choices[0].message.content
+        ) {
+            summary = completion.choices[0].message.content.trim();
+        }
+
+        // Fallback to Ollama only if Groq gave nothing
+        if (!summary) {
+            console.log("Groq returned an empty summary. Falling back to Ollama...");
+            summary = await runOllamaSummary(newsContent);
+        }
+
+        return summary;
+    } catch (err) {
+        console.error("Error summarizing with Groq:", err);
+        console.log("Groq failed. Falling back to Ollama...");
+        return null;
+    }
+}
+
+// Function to summarize text using API fallback (ngrok URL)
+export async function summarizeWithApiFallback(newsContent) {
+    let groqSummary = null;
+    try {
+        // Attempt to summarize with Groq
+        groqSummary = await summarizeWithGroq(newsContent);
+        if (groqSummary) {
+            console.log("Groq summary generated successfully.");
+            return groqSummary;
+        }
+
+        console.log("Groq failed or returned an empty summary. Falling back to Ollama summarization...");
+    } catch (error) {
+        console.error("Error summarizing with Groq:", error);
+        console.log("Groq failed. Falling back to Ollama summarization...");
     }
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        "model": "mixtral-8x7b-32768",
-        "messages": [
-          {
-            "role": "system",
-            "content": "You are a helpful assistant that summarizes articles.",
-          },
-          {
-            "role": "user",
-            "content": `Summarize the following article: ${text}`,
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      console.error(`Groq API error: ${response.status} ${response.statusText}`);
-      return "";
+    try {
+        const summary = await runOllamaSummary(newsContent);
+        return summary;
+    } catch (error) {
+        console.error("Error summarizing with Ollama via ngrok:", error);
+        console.log("Ollama failed.");
+        return "";
     }
-
-    const data = await response.json();
-    const summary = data.choices[0].message.content || "";
-    console.log(`Groq API summary for: ${text.substring(0, 50)}...\nSummary: ${summary.substring(0, 50)}...`);
-    return summary;
-
-  } catch (error) {
-    console.error("Error summarizing with Groq API:", error);
+    console.log("No summary generated at all.");
     return "";
-  }
-};
+
+}

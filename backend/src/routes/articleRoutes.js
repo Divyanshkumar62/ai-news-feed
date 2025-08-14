@@ -1,15 +1,17 @@
-const express = require("express");
-const articleController = require("./../controllers/articleController");
+import express from 'express';
+import { getArticles, fetchNow, getMostPopularArticles, getMostSharedArticles } from "./../controllers/articleController.js";
+import databaseService from "../services/databaseService.js";
 
 const router = express.Router();
 
-router.get("/articles", articleController.getArticles);
-router.post("/fetch-now", articleController.fetchNow);
-router.post("/clear-database", articleController.clearDatabase);
-router.post("/articles/:id/view", articleController.incrementViewCount);
-router.get("/articles/most-popular", articleController.getMostPopularArticles);
-router.get("/articles/most-shared", articleController.getMostSharedArticles);
-router.get("/articles/most-recent", articleController.getArticles);
-router.post("/articles/:id/share", articleController.incrementShareCount);
+router.get("/articles", getArticles);
+router.post("/fetch-now", fetchNow);
+router.post("/clear-database", databaseService.clearDatabase);
+router.post("/articles/:id/view", databaseService.incrementViewCount);
+router.get("/articles/most-popular", getMostPopularArticles);
+router.get("/articles/most-shared", getMostSharedArticles);
+router.get("/articles/most-recent", getArticles);
+router.post("/articles/:id/share", databaseService.incrementShareCount);
 
-module.exports = router;
+
+export default router;
