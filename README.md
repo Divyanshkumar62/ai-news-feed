@@ -58,12 +58,3 @@ feed-updates/
 1.  Clone the repository.
 2.  Navigate to the `backend` folder and follow the instructions in `backend/README.md` to set up the backend.
 3.  Navigate to the `frontend` folder and follow the instructions in `frontend/README.md` to set up the frontend.
-
-## Next Steps
-
-*   Implement the missing TODOs in the code.
-*   Set up a database (SQLite for MVP, PostgreSQL for production).
-*   Implement local summarization using Ollama.
-*   Implement API fallback for summarization.
-*   Deploy the backend to Railway.app or Render.com.
-*   Deploy the frontend to Vercel.
